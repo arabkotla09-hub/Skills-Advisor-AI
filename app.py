@@ -1,174 +1,183 @@
 import streamlit as st
 import os
-import json
 from huggingface_hub import InferenceClient
-from tenacity import retry, stop_after_attempt, wait_fixed
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
 
-# -------------------------
+# -----------------------
 # CONFIG
-# -------------------------
-st.set_page_config(
-    page_title="SkillAI SaaS",
-    page_icon="🚀",
-    layout="wide"
-)
+# -----------------------
+st.set_page_config(page_title="Skill Advisor AI Pro", page_icon="🚀", layout="wide")
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 if not HF_TOKEN:
-    st.error("Missing HF_TOKEN")
+    st.error("❌ Please set HF_TOKEN in environment variables")
     st.stop()
 
 client = InferenceClient(
-    model="mistralai/Mistral-7B-Instruct-v0.2",
+    model="meta-llama/Meta-Llama-3-8B-Instruct",
     token=HF_TOKEN
 )
 
-# -------------------------
-# CLEAN UI HEADER
-# -------------------------
-st.title("🚀 SkillAI SaaS")
-st.caption("AI Career Intelligence Platform")
+# -----------------------
+# THEME SWITCH 🌗
+# -----------------------
+theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
 
-# -------------------------
-# SIDEBAR
-# -------------------------
-with st.sidebar:
-    st.header("⚙️ Controls")
+if theme == "Dark":
+    st.markdown("""
+        <style>
+        body { background-color: #0e1117; color: white; }
+        </style>
+    """, unsafe_allow_html=True)
 
-    skill = st.text_input("Skill", "AI Engineer")
+# -----------------------
+# SIDEBAR CONTROLS
+# -----------------------
+st.sidebar.title("⚙️ Customize")
 
-    level = st.selectbox("Level", ["Beginner", "Intermediate", "Advanced"])
-    goal = st.selectbox("Goal", ["Job", "Freelancing", "Startup", "Remote"])
-    region = st.selectbox("Market", ["Pakistan", "Global", "Both"])
+level = st.sidebar.selectbox("📊 Skill Level", ["Beginner", "Intermediate", "Advanced"])
 
-    generate_btn = st.button("🚀 Generate")
+goal = st.sidebar.selectbox("🎯 Goal", [
+    "Freelancing", "Job", "Remote Job", "Startup", "Side Hustle"
+])
 
-# -------------------------
-# SAFE AI PROMPT (JSON OUTPUT ONLY)
-# -------------------------
-def build_prompt():
+region = st.sidebar.selectbox("🌍 Market", ["Pakistan", "Global", "Both"])
+
+time_commitment = st.sidebar.selectbox("⏳ Time/Week", [
+    "5-10 hours", "10-20 hours", "20+ hours"
+])
+
+# -----------------------
+# MAIN UI
+# -----------------------
+st.title("🚀 Skill Advisor AI Pro+")
+st.markdown("### AI-powered **career roadmap + market intelligence**")
+
+skill = st.text_input("🔍 Enter Skill", placeholder="e.g. AI, Cyber Security")
+
+# -----------------------
+# PROMPT (UPGRADED 🔥)
+# -----------------------
+def build_prompt(skill):
     return f"""
-Return ONLY valid JSON (no markdown, no explanation).
+You are an expert career advisor.
 
 Skill: {skill}
 Level: {level}
 Goal: {goal}
-Region: {region}
+Market: {region}
+Time: {time_commitment}
 
-JSON format:
-{{
-  "roadmap": "...",
-  "scope": "...",
-  "risk": "Low/Medium/High + reason",
-  "salary": "...",
-  "resources": ["link1", "link2"],
-  "careers": ["..."],
-  "time_to_job": "...",
-  "rating": 0-10
-}}
+Provide structured output:
+
+### 📍 Roadmap
+(step-by-step with timeline)
+
+### 🌍 Scope & Future Demand
+(is it growing or declining?)
+
+### 💰 Salary Range
+(Pakistan + Global)
+
+### 🎓 Best Courses & Resources
+Give REAL clickable links from:
+- Coursera
+- Udemy
+- YouTube
+- Free resources
+
+### ⚠️ Risk Level
+(Low / Medium / High + explanation)
+
+### 💼 Career Opportunities
+
+### ⏱️ Time to Job Ready
+
+### ⭐ Skill Rating
+(rate out of 10 based on future potential)
+
+### 🔥 Pro Tips
+(unique insights)
+
+Keep it practical and honest.
 """
 
-# -------------------------
-# STABLE AI CALL (RETRY + SAFETY)
-# -------------------------
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-def get_ai_response():
-    res = client.chat.completions.create(
-        messages=[
-            {"role": "system", "content": "You output strict JSON only."},
-            {"role": "user", "content": build_prompt()}
-        ],
-        max_tokens=1200,
-        temperature=0.5
-    )
-    return res.choices[0].message.content
-
-
-# -------------------------
-# CACHE (VERY IMPORTANT FOR SaaS)
-# -------------------------
-if "data" not in st.session_state:
-    st.session_state.data = None
-
-
-# -------------------------
-# GENERATE
-# -------------------------
-if generate_btn:
-    with st.spinner("Analyzing skill..."):
-        try:
-            raw = get_ai_response()
-            st.session_state.data = json.loads(raw)
-        except Exception as e:
-            st.error("AI failed. Try again.")
-            st.stop()
-
-data = st.session_state.data
-
-# -------------------------
-# CLEAN DASHBOARD UI
-# -------------------------
-if data:
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("🎯 Skill", skill)
-    col2.metric("📊 Level", level)
-    col3.metric("🌍 Market", region)
-    col4.metric("⭐ Rating", data.get("rating", 0))
-
-    st.divider()
-
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["🧭 Roadmap", "🌍 Scope", "⚠️ Risk", "💼 Careers"]
-    )
-
-    with tab1:
-        st.markdown(data["roadmap"])
-
-    with tab2:
-        st.markdown(data["scope"])
-
-    with tab3:
-        st.warning(data["risk"])
-
-    with tab4:
-        st.write(data["careers"])
-
-
-    st.subheader("💰 Salary")
-    st.info(data["salary"])
-
-    st.subheader("📚 Resources")
-    for r in data["resources"]:
-        st.markdown(f"- {r}")
-
-# -------------------------
-# PDF EXPORT (SAFE)
-# -------------------------
-def create_pdf(data, filename="report.pdf"):
-    doc = SimpleDocTemplate(filename)
-    styles = getSampleStyleSheet()
-    content = []
-
-    for k, v in data.items():
-        text = f"{k.upper()}: {str(v)}"
-        content.append(Paragraph(text, styles["Normal"]))
-        content.append(Spacer(1, 8))
-
-    doc.build(content)
-    return filename
-
-
-if data:
-    pdf = create_pdf(data)
-
-    with open(pdf, "rb") as f:
-        st.download_button(
-            "📄 Download Report (PDF)",
-            f,
-            file_name="SkillAI_Report.pdf"
+# -----------------------
+# GENERATE RESPONSE
+# -----------------------
+def generate_response(skill):
+    try:
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a brutally honest and practical career advisor."},
+                {"role": "user", "content": build_prompt(skill)}
+            ],
+            max_tokens=1000,
+            temperature=0.7
         )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
+
+# -----------------------
+# BUTTON ACTION
+# -----------------------
+if st.button("🚀 Generate Advanced Plan"):
+    if skill.strip():
+
+        with st.spinner("🧠 AI analyzing market + skill..."):
+            result = generate_response(skill)
+
+        # -----------------------
+        # TABS UI 🔥
+        # -----------------------
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📘 Full Report",
+            "⚡ Insights",
+            "📊 Skill Score",
+            "📥 Export"
+        ])
+
+        # FULL REPORT
+        with tab1:
+            st.markdown(result)
+
+        # QUICK INSIGHTS
+        with tab2:
+            st.success("⚡ Quick Summary")
+
+            st.write(f"""
+- 🎯 Best for: **{goal}**
+- 📊 Level: **{level}**
+- 🌍 Market: **{region}**
+- ⏳ Time Commitment: **{time_commitment}**
+            """)
+
+            st.info("💡 Tip: Focus on projects + consistency to stand out.")
+
+        # SKILL SCORE
+        with tab3:
+            st.metric("📈 Demand", "High")
+            st.metric("💰 Earning Potential", "High")
+            st.metric("⚠️ Risk", "Medium")
+
+            st.progress(80)
+
+        # EXPORT
+        with tab4:
+            st.download_button(
+                "📄 Download Report",
+                data=result,
+                file_name=f"{skill}_report.txt"
+            )
+
+            st.code(result)
+
+    else:
+        st.warning("⚠️ Please enter a skill")
+
+# -----------------------
+# FOOTER
+# -----------------------
+st.markdown("---")
+st.caption("🚀 Built for Hackathon Domination")
