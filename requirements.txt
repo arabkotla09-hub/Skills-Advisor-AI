@@ -1,4 +1,2 @@
 huggingface_hub
 streamlit
-reportlab
-tenacity
