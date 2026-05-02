@@ -6,35 +6,161 @@ from huggingface_hub import InferenceClient
 # CONFIG
 # -----------------------
 st.set_page_config(
-    page_title="Skill Advisor AI Pro",
-    page_icon="🚀",
+    page_title="Skill AI Advisor",
+    page_icon="🧠",
     layout="wide"
 )
 
 # -----------------------
-# HF TOKEN CHECK
+# HF TOKEN
 # -----------------------
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 if not HF_TOKEN:
-    st.error("❌ HF_TOKEN not found. Please set environment variable.")
+    st.error("❌ HF_TOKEN missing in environment variables")
     st.stop()
 
-# -----------------------
-# SAFE MODEL (IMPORTANT FIX)
-# -----------------------
 client = InferenceClient(
     model="mistralai/Mistral-7B-Instruct-v0.2",
     token=HF_TOKEN
 )
 
 # -----------------------
-# THEME SWITCH (SAFE)
+# SIDEBAR (CONTROL PANEL)
 # -----------------------
-theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
+st.sidebar.title("⚙️ Control Panel")
 
-if theme == "Dark":
-    st.markdown("""
+level = st.sidebar.selectbox("📊 Skill Level", ["Beginner", "Intermediate", "Advanced"])
+goal = st.sidebar.selectbox("🎯 Goal", ["Job", "Freelancing", "Startup", "Remote Job"])
+region = st.sidebar.selectbox("🌍 Market", ["Pakistan", "Global", "Both"])
+time_commitment = st.sidebar.selectbox("⏳ Time Weekly", ["5-10 hrs", "10-20 hrs", "20+ hrs"])
+
+st.sidebar.markdown("---")
+st.sidebar.info("💡 Tip: Be consistent. Build projects.")
+
+# -----------------------
+# HEADER (SAAS STYLE)
+# -----------------------
+st.title("🧠 Skill AI Advisor Pro")
+st.markdown("### Your AI-powered career strategist 🚀")
+
+# -----------------------
+# INPUT SECTION (CLEAN UI)
+# -----------------------
+with st.container():
+    skill = st.text_input("🔍 Enter Skill or Course", placeholder="e.g. AI, Cyber Security, Web Development")
+
+    generate = st.button("⚡ Generate Career Plan")
+
+# -----------------------
+# PROMPT ENGINE
+# -----------------------
+def build_prompt(skill):
+    return f"""
+You are a world-class career strategist.
+
+Skill: {skill}
+Level: {level}
+Goal: {goal}
+Market: {region}
+Time: {time_commitment}
+
+Return structured output:
+
+1. Roadmap (step-by-step)
+2. Market demand (future scope)
+3. Salary (Pakistan + Global)
+4. Best learning resources (with links)
+5. Risks
+6. Job opportunities
+7. Time to become job-ready
+8. Skill rating (1-10)
+9. Pro tips
+
+Be realistic, sharp, and practical.
+"""
+
+# -----------------------
+# AI CALL (SAFE)
+# -----------------------
+def get_response(skill):
+    try:
+        res = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a strict but helpful career advisor."},
+                {"role": "user", "content": build_prompt(skill)}
+            ],
+            max_tokens=900,
+            temperature=0.7
+        )
+        return res.choices[0].message.content
+
+    except Exception as e:
+        return f"⚠️ AI Error: {str(e)}"
+
+# -----------------------
+# OUTPUT UI (CHAT STYLE)
+# -----------------------
+if generate:
+
+    if skill.strip():
+
+        with st.spinner("🧠 Thinking like a career expert..."):
+            output = get_response(skill)
+
+        st.markdown("---")
+
+        # MAIN OUTPUT BOX (CHAT STYLE)
+        st.subheader("📘 Career Analysis Report")
+
+        st.markdown(
+            f"""
+            <div style="
+                padding:20px;
+                border-radius:12px;
+                background-color:#111827;
+                color:white;
+                line-height:1.6;
+                font-size:15px;
+            ">
+            {output}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.markdown("---")
+
+        # INSIGHT CARDS
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric("🎯 Goal", goal)
+
+        with col2:
+            st.metric("📊 Level", level)
+
+        with col3:
+            st.metric("🌍 Market", region)
+
+        with col4:
+            st.metric("⏳ Time", time_commitment)
+
+        # DOWNLOAD SECTION
+        st.download_button(
+            "📥 Download Full Report",
+            data=output,
+            file_name=f"{skill}_career_report.txt"
+        )
+
+    else:
+        st.warning("⚠️ Please enter a skill")
+
+# -----------------------
+# FOOTER
+# -----------------------
+st.markdown("---")
+st.caption("🧠 Skill AI Advisor • Built for next-gen career planning")    st.markdown("""
     <style>
     .stApp {
         background-color: #0e1117;
