@@ -11,30 +11,162 @@ st.set_page_config(
     layout="wide"
 )
 
+# -----------------------
+# HF TOKEN CHECK
+# -----------------------
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 if not HF_TOKEN:
-    st.error("❌ Please set HF_TOKEN in environment variables")
+    st.error("❌ HF_TOKEN not found. Please set environment variable.")
     st.stop()
 
+# -----------------------
+# SAFE MODEL (IMPORTANT FIX)
+# -----------------------
 client = InferenceClient(
-    model="meta-llama/Meta-Llama-3-8B-Instruct",
+    model="mistralai/Mistral-7B-Instruct-v0.2",
     token=HF_TOKEN
 )
 
 # -----------------------
-# THEME SWITCH (FIXED PROPERLY)
+# THEME SWITCH (SAFE)
 # -----------------------
 theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
 
 if theme == "Dark":
-    st.markdown(
-        """
-        <style>
-        .stApp {
-            background-color: #0e1117;
-            color: #ffffff;
-        }
+    st.markdown("""
+    <style>
+    .stApp {
+        background-color: #0e1117;
+        color: #ffffff;
+    }
+
+    .stTextInput input {
+        background-color: #262730;
+        color: white;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# -----------------------
+# SIDEBAR CONTROLS
+# -----------------------
+st.sidebar.title("⚙️ Customize")
+
+level = st.sidebar.selectbox("📊 Skill Level", ["Beginner", "Intermediate", "Advanced"])
+
+goal = st.sidebar.selectbox("🎯 Goal", ["Freelancing", "Job", "Remote Job", "Startup", "Side Hustle"])
+
+region = st.sidebar.selectbox("🌍 Market", ["Pakistan", "Global", "Both"])
+
+time_commitment = st.sidebar.selectbox("⏳ Time/Week", ["5-10 hours", "10-20 hours", "20+ hours"])
+
+# -----------------------
+# MAIN UI
+# -----------------------
+st.title("🚀 Skill Advisor AI Pro+")
+st.markdown("### AI-powered career roadmap + market intelligence")
+
+skill = st.text_input("🔍 Enter Skill", placeholder="e.g. AI, Cyber Security")
+
+# -----------------------
+# PROMPT
+# -----------------------
+def build_prompt(skill):
+    return f"""
+You are a brutally honest career advisor.
+
+Skill: {skill}
+Level: {level}
+Goal: {goal}
+Market: {region}
+Time: {time_commitment}
+
+Give:
+
+1. Roadmap step-by-step
+2. Scope & future demand
+3. Salary range (Pakistan + Global)
+4. Best courses (with links)
+5. Risk level
+6. Career opportunities
+7. Time to job-ready
+8. Skill rating out of 10
+9. Pro tips
+
+Be practical and realistic.
+"""
+
+# -----------------------
+# SAFE AI FUNCTION (NO CRASH)
+# -----------------------
+def generate_response(skill):
+    try:
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a practical career advisor."},
+                {"role": "user", "content": build_prompt(skill)}
+            ],
+            max_tokens=900,
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return f"⚠️ AI Error: {str(e)}"
+
+# -----------------------
+# BUTTON ACTION
+# -----------------------
+if st.button("🚀 Generate Advanced Plan"):
+
+    if skill.strip():
+
+        with st.spinner("🧠 AI analyzing skill & market..."):
+            result = generate_response(skill)
+
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📘 Full Report",
+            "⚡ Insights",
+            "📊 Score",
+            "📥 Export"
+        ])
+
+        with tab1:
+            st.markdown(result)
+
+        with tab2:
+            st.success("Quick Summary")
+            st.write(f"""
+- Goal: {goal}
+- Level: {level}
+- Market: {region}
+- Time: {time_commitment}
+            """)
+            st.info("Focus on real projects, not just learning.")
+
+        with tab3:
+            st.metric("Demand", "High")
+            st.metric("Earning Potential", "High")
+            st.metric("Risk", "Medium")
+            st.progress(80)
+
+        with tab4:
+            st.download_button(
+                "📄 Download Report",
+                data=result,
+                file_name=f"{skill}_report.txt"
+            )
+            st.code(result)
+
+    else:
+        st.warning("⚠️ Please enter a skill")
+
+# -----------------------
+# FOOTER
+# -----------------------
+st.markdown("---")
+st.caption("🚀 Built for Hackathon Domination")        }
 
         .stTextInput input {
             background-color: #262730;
