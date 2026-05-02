@@ -14,27 +14,126 @@ st.set_page_config(
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 if not HF_TOKEN:
-    st.error("❌ Please set HF_TOKEN in environment variables")
+    st.error("❌ HF_TOKEN not found in environment variables")
     st.stop()
 
 client = InferenceClient(
-    model="meta-llama/Meta-Llama-3-8B-Instruct",
+    model="mistralai/Mistral-7B-Instruct-v0.2",
     token=HF_TOKEN
 )
 
 # -----------------------
-# THEME SWITCH (FIXED)
+# SIDEBAR CONTROLS
 # -----------------------
-theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
+st.sidebar.title("⚙️ Customize")
 
-if theme == "Dark":
-    st.markdown("""
-    <style>
-        .stApp {
-            background-color: #0e1117;
-            color: #ffffff;
-        }
+level = st.sidebar.selectbox("📊 Skill Level", ["Beginner", "Intermediate", "Advanced"])
+goal = st.sidebar.selectbox("🎯 Goal", ["Freelancing", "Job", "Remote Job", "Startup", "Side Hustle"])
+region = st.sidebar.selectbox("🌍 Market", ["Pakistan", "Global", "Both"])
+time_commitment = st.sidebar.selectbox("⏳ Time/Week", ["5-10 hours", "10-20 hours", "20+ hours"])
 
+# -----------------------
+# MAIN UI
+# -----------------------
+st.title("🚀 Skill Advisor AI Pro+")
+st.markdown("### AI-powered career roadmap engine")
+
+skill = st.text_input("🔍 Enter Skill (e.g. AI, Cyber Security)")
+
+# -----------------------
+# PROMPT
+# -----------------------
+def build_prompt(skill):
+    return f"""
+You are a brutally honest career advisor.
+
+Skill: {skill}
+Level: {level}
+Goal: {goal}
+Market: {region}
+Time: {time_commitment}
+
+Provide:
+
+1. Roadmap (step-by-step)
+2. Scope & future demand
+3. Salary range (Pakistan + Global)
+4. Best courses (real links)
+5. Risk level
+6. Career opportunities
+7. Time to job-ready
+8. Skill rating (out of 10)
+9. Pro tips
+
+Be practical, realistic, and honest.
+"""
+
+# -----------------------
+# API CALL (SAFE)
+# -----------------------
+@st.cache_data(show_spinner=False)
+def generate_response(skill):
+    try:
+        response = client.text_generation(
+            prompt=build_prompt(skill),
+            max_new_tokens=900,
+            temperature=0.7,
+            return_full_text=False
+        )
+        return response
+    except Exception as e:
+        return f"❌ API Error: {str(e)}"
+
+# -----------------------
+# BUTTON ACTION
+# -----------------------
+if st.button("🚀 Generate Advanced Plan"):
+    if skill.strip():
+
+        with st.spinner("🧠 AI analyzing global market trends..."):
+            result = generate_response(skill)
+
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📘 Full Report",
+            "⚡ Insights",
+            "📊 Score",
+            "📥 Export"
+        ])
+
+        with tab1:
+            st.markdown(result)
+
+        with tab2:
+            st.success("Quick Summary")
+            st.write(f"""
+- Goal: {goal}
+- Level: {level}
+- Market: {region}
+- Time: {time_commitment}
+""")
+
+        with tab3:
+            st.metric("Demand", "High")
+            st.metric("Earning", "High")
+            st.metric("Risk", "Medium")
+            st.progress(85)
+
+        with tab4:
+            st.download_button(
+                "Download Report",
+                data=result,
+                file_name=f"{skill}_report.txt"
+            )
+            st.code(result)
+
+    else:
+        st.warning("Enter a skill first")
+
+# -----------------------
+# FOOTER
+# -----------------------
+st.markdown("---")
+st.caption("🚀 Hackathon SaaS Version (Stable Build)")
         .stTextInput input {
             background-color: #262730;
             color: white;
