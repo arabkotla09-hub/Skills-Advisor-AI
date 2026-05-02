@@ -7,11 +7,11 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 
 # Initialize the client
 # The model and provider now require the conversational/chat interface
+# Change from v0.2 to v0.3 (or use Llama-3)
 client = InferenceClient(
-    model="mistralai/Mistral-7B-Instruct-v0.2",
+    model="mistralai/Mistral-7B-Instruct-v0.3", 
     token=HF_TOKEN
 )
-
 # Page config
 st.set_page_config(page_title="Skill Advisor AI", page_icon="🚀", layout="centered")
 
