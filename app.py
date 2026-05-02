@@ -28,13 +28,95 @@ if not HF_TOKEN:
 client = InferenceClient(model="meta-llama/Meta-Llama-3-8B-Instruct", token=HF_TOKEN)
 
 # -----------------------
-# SIDEBAR CONTROLS
+# SIDEBAR CONTROLS (Only defined ONCE)
 # -----------------------
 with st.sidebar:
     st.title("⚙️ Customize")
     app_mode = st.radio("🛠️ Select Mode", ["Single Skill Roadmap", "Compare Skills/Courses"])
     
     st.divider()
+    # Adding unique keys just in case
+    level = st.selectbox("📊 Current Level", ["Beginner", "Intermediate", "Advanced"], key="sb_level")
+    goal = st.selectbox("🎯 Career Goal", ["Freelancing", "Job", "Remote Job", "Startup", "Side Hustle"], key="sb_goal")
+    region = st.selectbox("🌍 Market", ["Pakistan", "Global", "Both"], key="sb_region")
+    time_commitment = st.selectbox("⏳ Time/Week", ["5-10 hours", "10-20 hours", "20+ hours"], key="sb_time")
+    st.divider()
+    st.info("💡 **Pro Tip:** In 2026, proof of work (GitHub/Portfolio) beats a resume every time.")
+
+# -----------------------
+# AI LOGIC
+# -----------------------
+def get_ai_response(prompt):
+    try:
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a brutally honest and practical career strategist."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1200,
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"❌ AI Error: {str(e)}"
+
+# -----------------------
+# MAIN UI
+# -----------------------
+if app_mode == "Single Skill Roadmap":
+    st.title("🚀 Skill Advisor AI Pro+")
+    st.markdown("### Your personal career roadmap engine")
+    
+    skill = st.text_input("🔍 Enter Skill", placeholder="e.g. AI Engineering", key="single_skill_input")
+
+    if st.button("Generate Plan", key="btn_single"):
+        if skill.strip():
+            with st.spinner("Analyzing market..."):
+                prompt = f"""
+                Provide a detailed career roadmap for {skill}.
+                Learner Level: {level}
+                Goal: {goal}
+                Market: {region}
+                Time: {time_commitment}/week
+                
+                Include: Step-by-step roadmap, Global/Pakistan Salary, Best Resources with links, and a Risk level.
+                """
+                result = get_ai_response(prompt)
+                st.markdown(result)
+        else:
+            st.warning("Please enter a skill.")
+
+else:
+    st.title("⚔️ Skill & Course Comparison")
+    st.markdown("### Side-by-side analysis of your options")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        item_a = st.text_input("Option A (Skill/Course)", placeholder="e.g. React.js", key="compare_a")
+    with col2:
+        item_b = st.text_input("Option B (Skill/Course)", placeholder="e.g. Next.js", key="compare_b")
+
+    if st.button("⚔️ Start Comparison", key="btn_compare"):
+        if item_a.strip() and item_b.strip():
+            with st.spinner(f"Comparing {item_a} vs {item_b}..."):
+                compare_prompt = f"""
+                Compare these two items side-by-side for a {level} level learner aiming for {goal} in {region}:
+                1: {item_a}
+                2: {item_b}
+
+                Please provide a side-by-side table, Pros & Cons for each, and a final verdict based on {time_commitment}/week.
+                """
+                comparison_result = get_ai_response(compare_prompt)
+                st.divider()
+                st.markdown(comparison_result)
+        else:
+            st.warning("⚠️ Please fill in both options.")
+
+# -----------------------
+# FOOTER
+# -----------------------
+st.divider()
+st.caption("🚀 Built for Hackathon Domination | Stable Build v2.1")    st.divider()
     level = st.selectbox("📊 Current Level", ["Beginner", "Intermediate", "Advanced"])
     goal = st.selectbox("🎯 Career Goal", ["Freelancing", "Job", "Remote Job", "Startup"])
     region = st.selectbox("🌍 Market", ["Pakistan", "Global", "Both"])
