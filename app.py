@@ -2,9 +2,11 @@ import streamlit as st
 import os
 from huggingface_hub import InferenceClient
 
-# Secure token (use environment variable)
+# Secure token (ensure this is set in your environment variables)
 HF_TOKEN = os.getenv("HF_TOKEN")
 
+# Initialize the client
+# The model and provider now require the conversational/chat interface
 client = InferenceClient(
     model="mistralai/Mistral-7B-Instruct-v0.2",
     token=HF_TOKEN
@@ -18,9 +20,9 @@ st.title("🚀 Skill Advisor AI")
 st.markdown("Get a **complete roadmap + career guidance** for any skill")
 
 # Input
-skill = st.text_input("🔍 Enter Skill / Course Name")
+skill = st.text_input("🔍 Enter Skill / Course Name", placeholder="e.g. Cyber Security, Python, Graphic Design")
 
-# Improved prompt
+# Prompt Template
 def build_prompt(skill):
     return f"""
 You are an expert career advisor.
@@ -49,23 +51,28 @@ Give a clean, well-structured answer with headings:
 Keep it practical, honest, and beginner-friendly.
 """
 
-# Cache response (faster UX)
+# Fixed generate function using chat_completion
 @st.cache_data(show_spinner=False)
 def generate_response(skill):
     try:
-        response = client.text_generation(
-            build_prompt(skill),
-            max_new_tokens=700,
+        # Switching to chat_completion fixes the "Supported task: conversational" error
+        response = client.chat_completion(
+            messages=[
+                {"role": "system", "content": "You are a professional career advisor with deep knowledge of the Pakistani and international job markets."},
+                {"role": "user", "content": build_prompt(skill)}
+            ],
+            max_tokens=1000,
             temperature=0.7
         )
-        return response
+        # Extracting the content from the response object
+        return response.choices[0].message.content
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
-# Button
+# Button Logic
 if st.button("🚀 Generate Advice"):
     if skill.strip():
-        with st.spinner("Analyzing skill..."):
+        with st.spinner(f"Analyzing {skill}..."):
             result = generate_response(skill)
             st.markdown(result)
     else:
