@@ -2,27 +2,38 @@ import streamlit as st
 import os
 from huggingface_hub import InferenceClient
 
-# Secure token (ensure this is set in your environment variables)
+# -------------------------
+# CONFIG
+# -------------------------
+st.set_page_config(page_title="Skill Advisor AI", page_icon="🚀")
+
+# Load token safely
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-# Initialize the client
-# The model and provider now require the conversational/chat interface
-# Change from v0.2 to v0.3 (or use Llama-3)
+if not HF_TOKEN:
+    st.error("❌ Hugging Face token not found. Please set HF_TOKEN in environment variables.")
+    st.stop()
+
+# Initialize client
 client = InferenceClient(
-    model="mistralai/Mistral-7B-Instruct-v0.3", 
+    model="meta-llama/Meta-Llama-3-8B-Instruct",  # More stable than Mistral sometimes
     token=HF_TOKEN
 )
-# Page config
-st.set_page_config(page_title="Skill Advisor AI", page_icon="🚀", layout="centered")
 
-# Title
+# -------------------------
+# UI
+# -------------------------
 st.title("🚀 Skill Advisor AI")
 st.markdown("Get a **complete roadmap + career guidance** for any skill")
 
-# Input
-skill = st.text_input("🔍 Enter Skill / Course Name", placeholder="e.g. Cyber Security, Python, Graphic Design")
+skill = st.text_input(
+    "🔍 Enter Skill / Course Name",
+    placeholder="e.g. Cyber Security, Python, Graphic Design"
+)
 
-# Prompt Template
+# -------------------------
+# PROMPT
+# -------------------------
 def build_prompt(skill):
     return f"""
 You are an expert career advisor.
@@ -51,25 +62,27 @@ Give a clean, well-structured answer with headings:
 Keep it practical, honest, and beginner-friendly.
 """
 
-# Fixed generate function using chat_completion
-@st.cache_data(show_spinner=False)
+# -------------------------
+# GENERATE RESPONSE
+# -------------------------
 def generate_response(skill):
     try:
-        # Switching to chat_completion fixes the "Supported task: conversational" error
-        response = client.chat_completion(
+        response = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "You are a professional career advisor with deep knowledge of the Pakistani and international job markets."},
+                {"role": "system", "content": "You are a professional career advisor."},
                 {"role": "user", "content": build_prompt(skill)}
             ],
-            max_tokens=1000,
+            max_tokens=800,
             temperature=0.7
         )
-        # Extracting the content from the response object
         return response.choices[0].message.content
+
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
-# Button Logic
+# -------------------------
+# BUTTON
+# -------------------------
 if st.button("🚀 Generate Advice"):
     if skill.strip():
         with st.spinner(f"Analyzing {skill}..."):
@@ -78,6 +91,8 @@ if st.button("🚀 Generate Advice"):
     else:
         st.warning("⚠️ Please enter a skill")
 
-# Footer
+# -------------------------
+# FOOTER
+# -------------------------
 st.markdown("---")
 st.caption("Built with ❤️ using Streamlit + Hugging Face")
