@@ -1,44 +1,76 @@
 import streamlit as st
+import os
 from huggingface_hub import InferenceClient
 
-# Add your token here
+# Secure token (use environment variable)
+HF_TOKEN = os.getenv("HF_TOKEN")
+
 client = InferenceClient(
     model="mistralai/Mistral-7B-Instruct-v0.2",
-    token="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"
+    token=HF_TOKEN
 )
 
-st.set_page_config(page_title="Skill Advisor AI")
+# Page config
+st.set_page_config(page_title="Skill Advisor AI", page_icon="🚀", layout="centered")
 
+# Title
 st.title("🚀 Skill Advisor AI")
-st.write("Enter any skill or course to get complete guidance")
+st.markdown("Get a **complete roadmap + career guidance** for any skill")
 
-skill = st.text_input("Enter Skill / Course Name")
+# Input
+skill = st.text_input("🔍 Enter Skill / Course Name")
 
+# Improved prompt
+def build_prompt(skill):
+    return f"""
+You are an expert career advisor.
+
+Analyze the skill: "{skill}"
+
+Give a clean, well-structured answer with headings:
+
+### 📍 Roadmap
+(step-by-step learning path)
+
+### 🌍 Scope
+(Pakistan + Global demand)
+
+### 🎓 Best Platforms/Courses
+(include real platforms like Coursera, Udemy, YouTube)
+
+### 💼 Career Opportunities
+
+### ⚠️ Drawbacks
+
+### 👤 Who should learn this
+
+### 🚫 Who should avoid this
+
+Keep it practical, honest, and beginner-friendly.
+"""
+
+# Cache response (faster UX)
+@st.cache_data(show_spinner=False)
 def generate_response(skill):
-    prompt = f"""
-    Analyze the skill: {skill}
+    try:
+        response = client.text_generation(
+            build_prompt(skill),
+            max_new_tokens=700,
+            temperature=0.7
+        )
+        return response
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
 
-    Give structured output:
-
-    1. Roadmap (step-by-step learning path)
-    2. Scope (Pakistan + Global)
-    3. Best Platforms/Courses
-    4. Career Opportunities
-    5. Drawbacks
-    6. Who should learn this
-    7. Who should avoid this
-    """
-
-    response = client.text_generation(
-        prompt,
-        max_new_tokens=500
-    )
-    return response
-
-if st.button("Generate"):
-    if skill:
-        with st.spinner("Analyzing..."):
+# Button
+if st.button("🚀 Generate Advice"):
+    if skill.strip():
+        with st.spinner("Analyzing skill..."):
             result = generate_response(skill)
-            st.write(result)
+            st.markdown(result)
     else:
-        st.warning("Please enter a skill")
+        st.warning("⚠️ Please enter a skill")
+
+# Footer
+st.markdown("---")
+st.caption("Built with ❤️ using Streamlit + Hugging Face")
