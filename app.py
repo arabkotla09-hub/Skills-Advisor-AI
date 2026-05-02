@@ -1,6 +1,8 @@
 import streamlit as st
 import os
 from huggingface_hub import InferenceClient
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 
 # -----------------------
 # CONFIG
@@ -19,21 +21,9 @@ client = InferenceClient(
 )
 
 # -----------------------
-# THEME SWITCH 🌗
+# SIDEBAR
 # -----------------------
-theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
-
-if theme == "Dark":
-    st.markdown("""
-        <style>
-        body { background-color: #0e1117; color: white; }
-        </style>
-    """, unsafe_allow_html=True)
-
-# -----------------------
-# SIDEBAR CONTROLS
-# -----------------------
-st.sidebar.title("⚙️ Customize")
+st.sidebar.title("⚙️ Customize Your Plan")
 
 level = st.sidebar.selectbox("📊 Skill Level", ["Beginner", "Intermediate", "Advanced"])
 
@@ -41,9 +31,9 @@ goal = st.sidebar.selectbox("🎯 Goal", [
     "Freelancing", "Job", "Remote Job", "Startup", "Side Hustle"
 ])
 
-region = st.sidebar.selectbox("🌍 Market", ["Pakistan", "Global", "Both"])
+region = st.sidebar.selectbox("🌍 Market Focus", ["Pakistan", "Global", "Both"])
 
-time_commitment = st.sidebar.selectbox("⏳ Time/Week", [
+time_commitment = st.sidebar.selectbox("⏳ Time per Week", [
     "5-10 hours", "10-20 hours", "20+ hours"
 ])
 
@@ -51,12 +41,12 @@ time_commitment = st.sidebar.selectbox("⏳ Time/Week", [
 # MAIN UI
 # -----------------------
 st.title("🚀 Skill Advisor AI Pro+")
-st.markdown("### AI-powered **career roadmap + market intelligence**")
+st.markdown("### Get **roadmap + career insights + resources + risk analysis**")
 
-skill = st.text_input("🔍 Enter Skill", placeholder="e.g. AI, Cyber Security")
+skill = st.text_input("🔍 Enter Skill", placeholder="e.g. AI, Cyber Security, Web Development")
 
 # -----------------------
-# PROMPT (UPGRADED 🔥)
+# PROMPT
 # -----------------------
 def build_prompt(skill):
     return f"""
@@ -66,7 +56,7 @@ Skill: {skill}
 Level: {level}
 Goal: {goal}
 Market: {region}
-Time: {time_commitment}
+Time Commitment: {time_commitment}
 
 Provide structured output:
 
@@ -74,32 +64,21 @@ Provide structured output:
 (step-by-step with timeline)
 
 ### 🌍 Scope & Future Demand
-(is it growing or declining?)
 
-### 💰 Salary Range
-(Pakistan + Global)
+### 💰 Salary Range (Pakistan + Global)
 
 ### 🎓 Best Courses & Resources
-Give REAL clickable links from:
-- Coursera
-- Udemy
-- YouTube
-- Free resources
+Include real links (Coursera, Udemy, YouTube, free)
 
-### ⚠️ Risk Level
-(Low / Medium / High + explanation)
+### ⚠️ Risk Level (Low/Medium/High + reason)
 
 ### 💼 Career Opportunities
 
 ### ⏱️ Time to Job Ready
 
-### ⭐ Skill Rating
-(rate out of 10 based on future potential)
+### ⭐ Skill Rating (out of 10)
 
 ### 🔥 Pro Tips
-(unique insights)
-
-Keep it practical and honest.
 """
 
 # -----------------------
@@ -109,7 +88,7 @@ def generate_response(skill):
     try:
         response = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "You are a brutally honest and practical career advisor."},
+                {"role": "system", "content": "You are a practical and honest career advisor."},
                 {"role": "user", "content": build_prompt(skill)}
             ],
             max_tokens=1000,
@@ -120,21 +99,36 @@ def generate_response(skill):
         return f"❌ Error: {str(e)}"
 
 # -----------------------
-# BUTTON ACTION
+# PDF GENERATION
 # -----------------------
-if st.button("🚀 Generate Advanced Plan"):
+def create_pdf(text, filename="report.pdf"):
+    doc = SimpleDocTemplate(filename)
+    styles = getSampleStyleSheet()
+
+    content = []
+
+    for line in text.split("\n"):
+        content.append(Paragraph(line, styles["Normal"]))
+        content.append(Spacer(1, 10))
+
+    doc.build(content)
+    return filename
+
+# -----------------------
+# BUTTON
+# -----------------------
+if st.button("🚀 Generate Full Report"):
     if skill.strip():
 
-        with st.spinner("🧠 AI analyzing market + skill..."):
+        with st.spinner("🧠 AI analyzing skill + market..."):
             result = generate_response(skill)
 
         # -----------------------
-        # TABS UI 🔥
+        # TABS
         # -----------------------
-        tab1, tab2, tab3, tab4 = st.tabs([
+        tab1, tab2, tab3 = st.tabs([
             "📘 Full Report",
             "⚡ Insights",
-            "📊 Skill Score",
             "📥 Export"
         ])
 
@@ -142,36 +136,41 @@ if st.button("🚀 Generate Advanced Plan"):
         with tab1:
             st.markdown(result)
 
-        # QUICK INSIGHTS
+        # INSIGHTS
         with tab2:
-            st.success("⚡ Quick Summary")
+            st.success("⚡ Quick Insights")
 
             st.write(f"""
-- 🎯 Best for: **{goal}**
+- 🎯 Goal: **{goal}**
 - 📊 Level: **{level}**
 - 🌍 Market: **{region}**
-- ⏳ Time Commitment: **{time_commitment}**
+- ⏳ Time: **{time_commitment}**
             """)
 
-            st.info("💡 Tip: Focus on projects + consistency to stand out.")
+            st.info("💡 Tip: Build projects + portfolio for faster growth.")
 
-        # SKILL SCORE
-        with tab3:
             st.metric("📈 Demand", "High")
-            st.metric("💰 Earning Potential", "High")
+            st.metric("💰 Income Potential", "High")
             st.metric("⚠️ Risk", "Medium")
 
-            st.progress(80)
-
         # EXPORT
-        with tab4:
+        with tab3:
+            # TXT download
             st.download_button(
-                "📄 Download Report",
+                "📄 Download as TXT",
                 data=result,
                 file_name=f"{skill}_report.txt"
             )
 
-            st.code(result)
+            # PDF generation
+            pdf_file = create_pdf(result, f"{skill}_report.pdf")
+
+            with open(pdf_file, "rb") as f:
+                st.download_button(
+                    "📄 Download as PDF",
+                    f,
+                    file_name=f"{skill}_report.pdf"
+                )
 
     else:
         st.warning("⚠️ Please enter a skill")
@@ -180,4 +179,4 @@ if st.button("🚀 Generate Advanced Plan"):
 # FOOTER
 # -----------------------
 st.markdown("---")
-st.caption("🚀 Built for Hackathon Domination")
+st.caption("🚀 Built for Hackathon Excellence")
