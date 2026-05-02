@@ -5,7 +5,11 @@ from huggingface_hub import InferenceClient
 # -----------------------
 # CONFIG
 # -----------------------
-st.set_page_config(page_title="Skill Advisor AI Pro", page_icon="🚀", layout="wide")
+st.set_page_config(
+    page_title="Skill Advisor AI Pro",
+    page_icon="🚀",
+    layout="wide"
+)
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 
@@ -19,22 +23,170 @@ client = InferenceClient(
 )
 
 # -----------------------
-# THEME SWITCH 🌗
+# THEME SWITCH (FIXED PROPERLY)
 # -----------------------
 theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
 
 if theme == "Dark":
-    st.markdown("""
+    st.markdown(
+        """
         <style>
-        body { background-color: #0e1117; color: white; }
+        .stApp {
+            background-color: #0e1117;
+            color: #ffffff;
+        }
+
+        .stTextInput input {
+            background-color: #262730;
+            color: white;
+        }
+
+        .stSelectbox, .stRadio {
+            color: white;
+        }
         </style>
-    """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True
+    )
 
 # -----------------------
 # SIDEBAR CONTROLS
 # -----------------------
 st.sidebar.title("⚙️ Customize")
 
+level = st.sidebar.selectbox(
+    "📊 Skill Level",
+    ["Beginner", "Intermediate", "Advanced"]
+)
+
+goal = st.sidebar.selectbox(
+    "🎯 Goal",
+    ["Freelancing", "Job", "Remote Job", "Startup", "Side Hustle"]
+)
+
+region = st.sidebar.selectbox(
+    "🌍 Market",
+    ["Pakistan", "Global", "Both"]
+)
+
+time_commitment = st.sidebar.selectbox(
+    "⏳ Time/Week",
+    ["5-10 hours", "10-20 hours", "20+ hours"]
+)
+
+# -----------------------
+# MAIN UI
+# -----------------------
+st.title("🚀 Skill Advisor AI Pro+")
+st.markdown("### AI-powered career roadmap + market intelligence")
+
+skill = st.text_input("🔍 Enter Skill", placeholder="e.g. AI, Cyber Security")
+
+# -----------------------
+# PROMPT BUILDER
+# -----------------------
+def build_prompt(skill):
+    return f"""
+You are an expert career advisor.
+
+Skill: {skill}
+Level: {level}
+Goal: {goal}
+Market: {region}
+Time: {time_commitment}
+
+Provide structured output:
+
+1. Roadmap (step-by-step)
+2. Scope & Future Demand
+3. Salary Range (Pakistan + Global)
+4. Best Courses & Resources (with real links)
+5. Risk Level
+6. Career Opportunities
+7. Time to Job Ready
+8. Skill Rating (out of 10)
+9. Pro Tips
+
+Be practical and honest.
+"""
+
+# -----------------------
+# AI CALL
+# -----------------------
+def generate_response(skill):
+    try:
+        response = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a brutally honest career advisor."
+                },
+                {
+                    "role": "user",
+                    "content": build_prompt(skill)
+                }
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
+
+# -----------------------
+# BUTTON
+# -----------------------
+if st.button("🚀 Generate Advanced Plan"):
+
+    if skill.strip():
+
+        with st.spinner("🧠 AI analyzing skill..."):
+            result = generate_response(skill)
+
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📘 Full Report",
+            "⚡ Insights",
+            "📊 Score",
+            "📥 Export"
+        ])
+
+        with tab1:
+            st.markdown(result)
+
+        with tab2:
+            st.success("Quick Summary")
+            st.write(f"""
+- Goal: {goal}
+- Level: {level}
+- Market: {region}
+- Time: {time_commitment}
+            """)
+            st.info("Focus on projects, not just theory.")
+
+        with tab3:
+            st.metric("Demand", "High")
+            st.metric("Earning", "High")
+            st.metric("Risk", "Medium")
+            st.progress(80)
+
+        with tab4:
+            st.download_button(
+                "Download Report",
+                data=result,
+                file_name=f"{skill}_report.txt"
+            )
+
+            st.code(result)
+
+    else:
+        st.warning("⚠️ Please enter a skill")
+
+# -----------------------
+# FOOTER
+# -----------------------
+st.markdown("---")
+st.caption("🚀 Built for Hackathon Domination")
 level = st.sidebar.selectbox("📊 Skill Level", ["Beginner", "Intermediate", "Advanced"])
 
 goal = st.sidebar.selectbox("🎯 Goal", [
