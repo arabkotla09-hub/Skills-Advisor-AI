@@ -4,7 +4,7 @@ from huggingface_hub import InferenceClient
 # Add your token here
 client = InferenceClient(
     model="mistralai/Mistral-7B-Instruct-v0.2",
-    token="YOUR_HF_TOKEN"
+    token="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"
 )
 
 st.set_page_config(page_title="Skill Advisor AI")
