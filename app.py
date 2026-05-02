@@ -1,14 +1,16 @@
 import streamlit as st
 import os
+import json
 from huggingface_hub import InferenceClient
+from tenacity import retry, stop_after_attempt, wait_fixed
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
-# -----------------------
+# -------------------------
 # CONFIG
-# -----------------------
+# -------------------------
 st.set_page_config(
-    page_title="Skill Advisor AI Pro+",
+    page_title="SkillAI SaaS",
     page_icon="🚀",
     layout="wide"
 )
@@ -16,426 +18,157 @@ st.set_page_config(
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 if not HF_TOKEN:
-    st.error("❌ HF_TOKEN missing in environment variables")
+    st.error("Missing HF_TOKEN")
     st.stop()
 
 client = InferenceClient(
-    model="meta-llama/Meta-Llama-3-8B-Instruct",
+    model="mistralai/Mistral-7B-Instruct-v0.2",
     token=HF_TOKEN
 )
 
-# -----------------------
-# SIDEBAR INPUTS
-# -----------------------
-st.sidebar.title("🎛️ Control Panel")
+# -------------------------
+# CLEAN UI HEADER
+# -------------------------
+st.title("🚀 SkillAI SaaS")
+st.caption("AI Career Intelligence Platform")
 
-page = st.sidebar.radio(
-    "Navigate",
-    ["🏠 Overview", "🧭 Roadmap", "🌍 Scope", "⚠️ Risk Analysis", "💰 Career & Salary", "📚 Resources", "📥 Export"]
-)
+# -------------------------
+# SIDEBAR
+# -------------------------
+with st.sidebar:
+    st.header("⚙️ Controls")
 
-skill = st.sidebar.text_input("🔍 Skill", "AI")
+    skill = st.text_input("Skill", "AI Engineer")
 
-level = st.sidebar.selectbox("📊 Level", ["Beginner", "Intermediate", "Advanced"])
-goal = st.sidebar.selectbox("🎯 Goal", ["Job", "Freelancing", "Startup", "Remote Job"])
-region = st.sidebar.selectbox("🌍 Market", ["Pakistan", "Global", "Both"])
-time_commitment = st.sidebar.selectbox("⏳ Time/Week", ["5-10h", "10-20h", "20h+"])
+    level = st.selectbox("Level", ["Beginner", "Intermediate", "Advanced"])
+    goal = st.selectbox("Goal", ["Job", "Freelancing", "Startup", "Remote"])
+    region = st.selectbox("Market", ["Pakistan", "Global", "Both"])
 
+    generate_btn = st.button("🚀 Generate")
 
-# -----------------------
-# PROMPT
-# -----------------------
-def build_prompt(skill):
+# -------------------------
+# SAFE AI PROMPT (JSON OUTPUT ONLY)
+# -------------------------
+def build_prompt():
     return f"""
-You are a senior career advisor.
+Return ONLY valid JSON (no markdown, no explanation).
 
 Skill: {skill}
 Level: {level}
 Goal: {goal}
 Region: {region}
-Time: {time_commitment}
 
-Return structured analysis with:
-Roadmap, Scope, Risk, Salary, Resources, Careers, Timeline, Rating.
+JSON format:
+{{
+  "roadmap": "...",
+  "scope": "...",
+  "risk": "Low/Medium/High + reason",
+  "salary": "...",
+  "resources": ["link1", "link2"],
+  "careers": ["..."],
+  "time_to_job": "...",
+  "rating": 0-10
+}}
 """
 
-
-def generate():
-    try:
-        res = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are a strict, practical career advisor."},
-                {"role": "user", "content": build_prompt(skill)}
-            ],
-            max_tokens=1200,
-            temperature=0.6
-        )
-        return res.choices[0].message.content
-    except Exception as e:
-        return str(e)
-
-
-# -----------------------
-# SESSION STATE (cache result)
-# -----------------------
-if "result" not in st.session_state:
-    st.session_state.result = ""
-
-if st.sidebar.button("🚀 Generate Analysis"):
-    if skill.strip():
-        with st.spinner("Analyzing skill + market..."):
-            st.session_state.result = generate()
-    else:
-        st.warning("Enter a skill first")
-
-
-result = st.session_state.result
-
-
-# -----------------------
-# UI PAGES
-# -----------------------
-
-if page == "🏠 Overview":
-    st.title("🚀 Skill Advisor AI Pro+")
-    st.markdown("Get AI-powered career guidance, roadmap, risk analysis & resources")
-
-    if result:
-        st.success("Analysis Ready ✔")
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("🎯 Goal", goal)
-        col2.metric("📊 Level", level)
-        col3.metric("🌍 Market", region)
-
-        st.markdown("### 🧠 AI Summary")
-        st.info(result[:800] + " ...")
-
-    else:
-        st.warning("Generate analysis from sidebar")
-
-
-
-elif page == "🧭 Roadmap":
-    st.title("🧭 Learning Roadmap")
-
-    if result:
-        st.markdown(result)
-    else:
-        st.info("Generate analysis first")
-
-
-elif page == "🌍 Scope":
-    st.title("🌍 Market Scope")
-
-    if result:
-        st.write("Extracted Scope Section")
-        st.markdown(result)
-    else:
-        st.info("No data yet")
-
-
-elif page == "⚠️ Risk Analysis":
-    st.title("⚠️ Risk Level Breakdown")
-
-    if result:
-        st.warning("AI-generated risk insights")
-        st.markdown(result)
-    else:
-        st.info("Generate report first")
-
-
-elif page == "💰 Career & Salary":
-    st.title("💰 Salary & Career Paths")
-
-    if result:
-        st.success("Career Opportunities")
-        st.markdown(result)
-    else:
-        st.info("Generate report first")
-
-
-elif page == "📚 Resources":
-    st.title("📚 Learning Resources Hub")
-
-    if result:
-        st.markdown("### Courses + Links")
-        st.markdown(result)
-    else:
-        st.info("Generate report first")
-
-
-elif page == "📥 Export":
-    st.title("📥 Export Report")
-
-    if result:
-        st.download_button(
-            "📄 Download TXT",
-            result,
-            file_name=f"{skill}_report.txt"
-        )
-    else:
-        st.info("Nothing to export yet")# SESSION STATE (cache result)
-# -----------------------
-if "result" not in st.session_state:
-    st.session_state.result = ""
-
-if st.sidebar.button("🚀 Generate Analysis"):
-    if skill.strip():
-        with st.spinner("Analyzing skill + market..."):
-            st.session_state.result = generate()
-    else:
-        st.warning("Enter a skill first")
-
-
-result = st.session_state.result
-
-
-# -----------------------
-# UI PAGES
-# -----------------------
-
-if page == "🏠 Overview":
-    st.title("🚀 Skill Advisor AI Pro+")
-    st.markdown("Get AI-powered career guidance, roadmap, risk analysis & resources")
-
-    if result:
-        st.success("Analysis Ready ✔")
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("🎯 Goal", goal)
-        col2.metric("📊 Level", level)
-        col3.metric("🌍 Market", region)
-
-        st.markdown("### 🧠 AI Summary")
-        st.info(result[:800] + " ...")
-
-    else:
-        st.warning("Generate analysis from sidebar")
-
-
-
-elif page == "🧭 Roadmap":
-    st.title("🧭 Learning Roadmap")
-
-    if result:
-        st.markdown(result)
-    else:
-        st.info("Generate analysis first")
-
-
-elif page == "🌍 Scope":
-    st.title("🌍 Market Scope")
-
-    if result:
-        st.write("Extracted Scope Section")
-        st.markdown(result)
-    else:
-        st.info("No data yet")
-
-
-elif page == "⚠️ Risk Analysis":
-    st.title("⚠️ Risk Level Breakdown")
-
-    if result:
-        st.warning("AI-generated risk insights")
-        st.markdown(result)
-    else:
-        st.info("Generate report first")
-
-
-elif page == "💰 Career & Salary":
-    st.title("💰 Salary & Career Paths")
-
-    if result:
-        st.success("Career Opportunities")
-        st.markdown(result)
-    else:
-        st.info("Generate report first")
-
-
-elif page == "📚 Resources":
-    st.title("📚 Learning Resources Hub")
-
-    if result:
-        st.markdown("### Courses + Links")
-        st.markdown(result)
-    else:
-        st.info("Generate report first")
-
-
-elif page == "📥 Export":
-    st.title("📥 Export Report")
-
-    if result:
-        st.download_button(
-            "📄 Download TXT",
-            result,
-            file_name=f"{skill}_report.txt"
-        )
-    else:
-        st.info("Nothing to export yet")
-    model="meta-llama/Meta-Llama-3-8B-Instruct",
-    token=HF_TOKEN
-)
-
-# -----------------------
-# SIDEBAR
-# -----------------------
-st.sidebar.title("⚙️ Customize Your Plan")
-
-level = st.sidebar.selectbox("📊 Skill Level", ["Beginner", "Intermediate", "Advanced"])
-
-goal = st.sidebar.selectbox("🎯 Goal", [
-    "Freelancing", "Job", "Remote Job", "Startup", "Side Hustle"
-])
-
-region = st.sidebar.selectbox("🌍 Market Focus", ["Pakistan", "Global", "Both"])
-
-time_commitment = st.sidebar.selectbox("⏳ Time per Week", [
-    "5-10 hours", "10-20 hours", "20+ hours"
-])
-
-# -----------------------
-# MAIN UI
-# -----------------------
-st.title("🚀 Skill Advisor AI Pro+")
-st.markdown("### Get **roadmap + career insights + resources + risk analysis**")
-
-skill = st.text_input("🔍 Enter Skill", placeholder="e.g. AI, Cyber Security, Web Development")
-
-# -----------------------
-# PROMPT
-# -----------------------
-def build_prompt(skill):
-    return f"""
-You are an expert career advisor.
-
-Skill: {skill}
-Level: {level}
-Goal: {goal}
-Market: {region}
-Time Commitment: {time_commitment}
-
-Provide structured output:
-
-### 📍 Roadmap
-(step-by-step with timeline)
-
-### 🌍 Scope & Future Demand
-
-### 💰 Salary Range (Pakistan + Global)
-
-### 🎓 Best Courses & Resources
-Include real links (Coursera, Udemy, YouTube, free)
-
-### ⚠️ Risk Level (Low/Medium/High + reason)
-
-### 💼 Career Opportunities
-
-### ⏱️ Time to Job Ready
-
-### ⭐ Skill Rating (out of 10)
-
-### 🔥 Pro Tips
-"""
-
-# -----------------------
-# GENERATE RESPONSE
-# -----------------------
-def generate_response(skill):
-    try:
-        response = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are a practical and honest career advisor."},
-                {"role": "user", "content": build_prompt(skill)}
-            ],
-            max_tokens=1000,
-            temperature=0.7
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"❌ Error: {str(e)}"
-
-# -----------------------
-# PDF GENERATION
-# -----------------------
-def create_pdf(text, filename="report.pdf"):
+# -------------------------
+# STABLE AI CALL (RETRY + SAFETY)
+# -------------------------
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+def get_ai_response():
+    res = client.chat.completions.create(
+        messages=[
+            {"role": "system", "content": "You output strict JSON only."},
+            {"role": "user", "content": build_prompt()}
+        ],
+        max_tokens=1200,
+        temperature=0.5
+    )
+    return res.choices[0].message.content
+
+
+# -------------------------
+# CACHE (VERY IMPORTANT FOR SaaS)
+# -------------------------
+if "data" not in st.session_state:
+    st.session_state.data = None
+
+
+# -------------------------
+# GENERATE
+# -------------------------
+if generate_btn:
+    with st.spinner("Analyzing skill..."):
+        try:
+            raw = get_ai_response()
+            st.session_state.data = json.loads(raw)
+        except Exception as e:
+            st.error("AI failed. Try again.")
+            st.stop()
+
+data = st.session_state.data
+
+# -------------------------
+# CLEAN DASHBOARD UI
+# -------------------------
+if data:
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric("🎯 Skill", skill)
+    col2.metric("📊 Level", level)
+    col3.metric("🌍 Market", region)
+    col4.metric("⭐ Rating", data.get("rating", 0))
+
+    st.divider()
+
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["🧭 Roadmap", "🌍 Scope", "⚠️ Risk", "💼 Careers"]
+    )
+
+    with tab1:
+        st.markdown(data["roadmap"])
+
+    with tab2:
+        st.markdown(data["scope"])
+
+    with tab3:
+        st.warning(data["risk"])
+
+    with tab4:
+        st.write(data["careers"])
+
+
+    st.subheader("💰 Salary")
+    st.info(data["salary"])
+
+    st.subheader("📚 Resources")
+    for r in data["resources"]:
+        st.markdown(f"- {r}")
+
+# -------------------------
+# PDF EXPORT (SAFE)
+# -------------------------
+def create_pdf(data, filename="report.pdf"):
     doc = SimpleDocTemplate(filename)
     styles = getSampleStyleSheet()
-
     content = []
 
-    for line in text.split("\n"):
-        content.append(Paragraph(line, styles["Normal"]))
-        content.append(Spacer(1, 10))
+    for k, v in data.items():
+        text = f"{k.upper()}: {str(v)}"
+        content.append(Paragraph(text, styles["Normal"]))
+        content.append(Spacer(1, 8))
 
     doc.build(content)
     return filename
 
-# -----------------------
-# BUTTON
-# -----------------------
-if st.button("🚀 Generate Full Report"):
-    if skill.strip():
 
-        with st.spinner("🧠 AI analyzing skill + market..."):
-            result = generate_response(skill)
+if data:
+    pdf = create_pdf(data)
 
-        # -----------------------
-        # TABS
-        # -----------------------
-        tab1, tab2, tab3 = st.tabs([
-            "📘 Full Report",
-            "⚡ Insights",
-            "📥 Export"
-        ])
-
-        # FULL REPORT
-        with tab1:
-            st.markdown(result)
-
-        # INSIGHTS
-        with tab2:
-            st.success("⚡ Quick Insights")
-
-            st.write(f"""
-- 🎯 Goal: **{goal}**
-- 📊 Level: **{level}**
-- 🌍 Market: **{region}**
-- ⏳ Time: **{time_commitment}**
-            """)
-
-            st.info("💡 Tip: Build projects + portfolio for faster growth.")
-
-            st.metric("📈 Demand", "High")
-            st.metric("💰 Income Potential", "High")
-            st.metric("⚠️ Risk", "Medium")
-
-        # EXPORT
-        with tab3:
-            # TXT download
-            st.download_button(
-                "📄 Download as TXT",
-                data=result,
-                file_name=f"{skill}_report.txt"
-            )
-
-            # PDF generation
-            pdf_file = create_pdf(result, f"{skill}_report.pdf")
-
-            with open(pdf_file, "rb") as f:
-                st.download_button(
-                    "📄 Download as PDF",
-                    f,
-                    file_name=f"{skill}_report.pdf"
-                )
-
-    else:
-        st.warning("⚠️ Please enter a skill")
-
-# -----------------------
-# FOOTER
-# -----------------------
-st.markdown("---")
-st.caption("🚀 Built for Hackathon Excellence")
+    with open(pdf, "rb") as f:
+        st.download_button(
+            "📄 Download Report (PDF)",
+            f,
+            file_name="SkillAI_Report.pdf"
+        )
